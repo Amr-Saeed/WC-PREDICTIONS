@@ -1,31 +1,20 @@
-// Vercel serverless function: /api/results
-//
-// This runs on Vercel's server, not in the browser, so it is NOT subject to
-// CORS restrictions. The frontend calls THIS endpoint (same-origin, since
-// it's served from your own Vercel deployment), and this function does the
-// actual call to football-data.org using your secret token.
-//
-// Setup on Vercel:
-// 1. In your Vercel project settings -> Environment Variables, add:
-//      FOOTBALL_DATA_TOKEN = your_token_here
-//    (no VITE_ prefix here -- this one stays server-side and is never sent
-//    to the browser, which is the whole point of doing it this way)
-// 2. Redeploy. The frontend will call /api/results instead of hitting
-//    football-data.org directly.
-
 export default async function handler(req, res) {
   const token = process.env.FOOTBALL_DATA_TOKEN;
 
   if (!token) {
     return res.status(500).json({
-      error: "Server is missing FOOTBALL_DATA_TOKEN. Add it in your Vercel project's environment variables.",
+      error:
+        "Server is missing FOOTBALL_DATA_TOKEN. Add it in your Vercel project's environment variables.",
     });
   }
 
   try {
-    const apiRes = await fetch("https://api.football-data.org/v4/competitions/WC/matches", {
-      headers: { "X-Auth-Token": token },
-    });
+    const apiRes = await fetch(
+      "https://api.football-data.org/v4/competitions/WC/matches",
+      {
+        headers: { "X-Auth-Token": token },
+      },
+    );
 
     if (!apiRes.ok) {
       const text = await apiRes.text();
@@ -42,6 +31,11 @@ export default async function handler(req, res) {
     res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=30");
     return res.status(200).json(data);
   } catch (err) {
-    return res.status(500).json({ error: "Failed to reach football-data.org", details: err.message });
+    return res
+      .status(500)
+      .json({
+        error: "Failed to reach football-data.org",
+        details: err.message,
+      });
   }
 }
