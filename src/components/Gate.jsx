@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+const COOLDOWN_SECONDS = 45;
 
 export default function Gate({ onEnter }) {
   const [nameInput, setNameInput] = useState("");
@@ -6,6 +8,17 @@ export default function Gate({ onEnter }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [cooldownLeft, setCooldownLeft] = useState(0);
+
+  useEffect(() => {
+    if (cooldownLeft <= 0) return undefined;
+
+    const timer = window.setInterval(() => {
+      setCooldownLeft((current) => (current > 1 ? current - 1 : 0));
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [cooldownLeft]);
 
   const handleEnter = async () => {
     const trimmed = nameInput.trim();
@@ -36,6 +49,7 @@ export default function Gate({ onEnter }) {
       setLoading(true);
       const result = await onEnter(trimmed, emailTrimmed);
       if (result?.message) setSuccess(result.message);
+      setCooldownLeft(COOLDOWN_SECONDS);
     } catch (err) {
       setError(err.message || "Failed to sign in.");
     } finally {
@@ -76,9 +90,18 @@ export default function Gate({ onEnter }) {
           placeholder="e.g. amr@example.com"
         />
         {error && <div className="err">{error}</div>}
-        <button onClick={handleEnter} disabled={loading}>
-          {loading ? "Sending link..." : "Send login link"}
+        <button onClick={handleEnter} disabled={loading || cooldownLeft > 0}>
+          {loading
+            ? "Sending link..."
+            : cooldownLeft > 0
+              ? `Wait ${cooldownLeft}s`
+              : "Send login link"}
         </button>
+        {cooldownLeft > 0 && (
+          <div className="existing-hint" style={{ color: "var(--gold-soft)" }}>
+            Cooldown active to prevent repeated email requests.
+          </div>
+        )}
         <div className="existing-hint">
           Enter your name first, then your email. We will email you a Supabase
           login link and keep your entered name for the leaderboard.
