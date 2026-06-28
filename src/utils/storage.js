@@ -8,8 +8,6 @@ export const supabase =
     ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
     : null;
 
-const PENDING_LOGIN_KEY = "wc_pending_login";
-
 function requireClient() {
   if (!supabase) {
     throw new Error("Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY.");
@@ -17,39 +15,86 @@ function requireClient() {
   return supabase;
 }
 
+function loginPasswordForEmail(email) {
+  return email.trim().toLowerCase();
+}
+
 export async function signInWithEmail(email, displayName) {
   const client = requireClient();
-  const { error } = await client.auth.signInWithOtp({
-    email,
+  const password = loginPasswordForEmail(email);
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const { data: existingProfile, error: existingProfileError } = await client
+    .from("profiles")
+    .select("id, email, display_name")
+    .ilike("email", normalizedEmail)
+    .maybeSingle();
+
+  if (existingProfileError) throw existingProfileError;
+
+  const { data: signInData, error: signInError } =
+    await client.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+  if (signInData?.user) {
+    await upsertProfile(
+      signInData.user.id,
+      displayName || signInData.user.email || normalizedEmail,
+      normalizedEmail,
+    );
+    return {
+      user: signInData.user,
+      message: `Logged in as ${displayName || signInData.user.email || normalizedEmail}`,
+    };
+  }
+
+  if (existingProfile?.id) {
+    throw new Error(
+      "This email is already registered. Sign in with the same email and password, or contact support if you previously used a different login method.",
+    );
+  }
+
+  const { data: signUpData, error: signUpError } = await client.auth.signUp({
+    email: normalizedEmail,
+    password,
     options: {
-      emailRedirectTo: window.location.origin,
-      shouldCreateUser: true,
-      data: displayName ? { display_name: displayName } : undefined,
+      data: displayName
+        ? { display_name: displayName, email: normalizedEmail }
+        : { email: normalizedEmail },
     },
   });
 
-  if (error) throw error;
-
-  return {
-    message: "Check your email for a Supabase sign-in link.",
-  };
-}
-
-export function setPendingLogin(name, email) {
-  localStorage.setItem(PENDING_LOGIN_KEY, JSON.stringify({ name, email }));
-}
-
-export function getPendingLogin() {
-  try {
-    const raw = localStorage.getItem(PENDING_LOGIN_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
+  if (signUpError) {
+    throw signUpError;
   }
-}
 
-export function clearPendingLogin() {
-  localStorage.removeItem(PENDING_LOGIN_KEY);
+  if (signUpData?.user) {
+    const { data: signInAfterSignUp, error: signInAfterSignUpError } =
+      await client.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+
+    if (signInAfterSignUpError) throw signInAfterSignUpError;
+
+    if (signInAfterSignUp?.user) {
+      await upsertProfile(
+        signInAfterSignUp.user.id,
+        displayName || signInAfterSignUp.user.email || normalizedEmail,
+        normalizedEmail,
+      );
+      return {
+        user: signInAfterSignUp.user,
+        message: `Logged in as ${displayName || signInAfterSignUp.user.email || normalizedEmail}`,
+      };
+    }
+  }
+
+  if (signInError) throw signInError;
+
+  throw new Error("Unable to log in.");
 }
 
 export async function getCurrentUser() {
@@ -69,7 +114,7 @@ export async function getProfile(userId) {
   const client = requireClient();
   const { data, error } = await client
     .from("profiles")
-    .select("id, display_name")
+    .select("id, email, display_name")
     .eq("id", userId)
     .maybeSingle();
 
@@ -77,12 +122,15 @@ export async function getProfile(userId) {
   return data;
 }
 
-export async function upsertProfile(userId, displayName) {
+export async function upsertProfile(userId, displayName, email) {
   const client = requireClient();
   const { data, error } = await client
     .from("profiles")
-    .upsert({ id: userId, display_name: displayName }, { onConflict: "id" })
-    .select("id, display_name")
+    .upsert(
+      { id: userId, display_name: displayName, email },
+      { onConflict: "id" },
+    )
+    .select("id, email, display_name")
     .single();
 
   if (error) throw error;
@@ -93,7 +141,7 @@ export async function listProfiles() {
   const client = requireClient();
   const { data, error } = await client
     .from("profiles")
-    .select("id, display_name")
+    .select("id, email, display_name")
     .order("display_name", { ascending: true });
 
   if (error) throw error;

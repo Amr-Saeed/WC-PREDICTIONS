@@ -1,24 +1,10 @@
-import { useEffect, useState } from "react";
-
-const COOLDOWN_SECONDS = 45;
+import { useState } from "react";
 
 export default function Gate({ onEnter }) {
   const [nameInput, setNameInput] = useState("");
   const [emailInput, setEmailInput] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
-  const [cooldownLeft, setCooldownLeft] = useState(0);
-
-  useEffect(() => {
-    if (cooldownLeft <= 0) return undefined;
-
-    const timer = window.setInterval(() => {
-      setCooldownLeft((current) => (current > 1 ? current - 1 : 0));
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, [cooldownLeft]);
 
   const handleEnter = async () => {
     const trimmed = nameInput.trim();
@@ -43,13 +29,13 @@ export default function Gate({ onEnter }) {
     }
 
     setError("");
-    setSuccess("");
 
     try {
       setLoading(true);
       const result = await onEnter(trimmed, emailTrimmed);
-      if (result?.message) setSuccess(result.message);
-      setCooldownLeft(COOLDOWN_SECONDS);
+      if (result?.message) {
+        setError("");
+      }
     } catch (err) {
       setError(err.message || "Failed to sign in.");
     } finally {
@@ -62,12 +48,6 @@ export default function Gate({ onEnter }) {
       <div className="trophy-big">🏆</div>
       <h1>World Cup 2026</h1>
       <div className="sub">Round of 32 · Prediction Game</div>
-      {success && (
-        <div className="gate-toast" role="status" aria-live="polite">
-          <div className="gate-toast-title">Check your email</div>
-          <div className="gate-toast-body">{success}</div>
-        </div>
-      )}
       <div className="gate-card">
         <label>Enter your name to join</label>
         <input
@@ -90,21 +70,12 @@ export default function Gate({ onEnter }) {
           placeholder="e.g. amr@example.com"
         />
         {error && <div className="err">{error}</div>}
-        <button onClick={handleEnter} disabled={loading || cooldownLeft > 0}>
-          {loading
-            ? "Sending link..."
-            : cooldownLeft > 0
-              ? `Wait ${cooldownLeft}s`
-              : "Send login link"}
+        <button onClick={handleEnter} disabled={loading}>
+          {loading ? "Logging in..." : "Login"}
         </button>
-        {cooldownLeft > 0 && (
-          <div className="existing-hint" style={{ color: "var(--gold-soft)" }}>
-            Cooldown active to prevent repeated email requests.
-          </div>
-        )}
         <div className="existing-hint">
-          Enter your name first, then your email. We will email you a Supabase
-          login link and keep your entered name for the leaderboard.
+          Enter your name first, then your email. We will log you in directly
+          and keep your entered name for the leaderboard.
         </div>
       </div>
     </div>

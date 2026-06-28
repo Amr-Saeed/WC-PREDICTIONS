@@ -14,9 +14,6 @@ import {
   getAllPredictions,
   listProfiles,
   signInWithEmail,
-  setPendingLogin,
-  getPendingLogin,
-  clearPendingLogin,
   signOut,
 } from "./utils/storage";
 
@@ -128,26 +125,20 @@ export default function App() {
         if (!alive) return;
 
         if (currentUser) {
-          const pendingLogin = getPendingLogin();
           const fallbackName =
-            pendingLogin?.name ||
             currentUser.user_metadata?.display_name ||
             currentUser.user_metadata?.name ||
             currentUser.email?.split("@")[0] ||
             "Player";
 
-          if (pendingLogin?.name) {
-            await supabase.auth.updateUser({
-              data: { display_name: pendingLogin.name },
-            });
-          }
-
-          const profile = pendingLogin?.name
-            ? await upsertProfile(currentUser.id, pendingLogin.name)
-            : (await getProfile(currentUser.id)) ||
-              (await upsertProfile(currentUser.id, fallbackName));
+          const profile =
+            (await getProfile(currentUser.id)) ||
+            (await upsertProfile(
+              currentUser.id,
+              fallbackName,
+              currentUser.email,
+            ));
           setUser({ id: profile.id, name: profile.display_name });
-          clearPendingLogin();
           await refreshSharedData(currentUser.id);
         }
       } catch (err) {
@@ -179,11 +170,17 @@ export default function App() {
   const handleEnter = async (name, email) => {
     setError("");
 
-    setPendingLogin(name.trim(), email.trim().toLowerCase());
-    const result = await signInWithEmail(
-      email.trim().toLowerCase(),
+    const normalizedEmail = email.trim().toLowerCase();
+    const result = await signInWithEmail(normalizedEmail, name.trim());
+
+    const profile = await upsertProfile(
+      result.user.id,
       name.trim(),
+      normalizedEmail,
     );
+    setUser({ id: profile.id, name: profile.display_name });
+    setView("matches");
+    await refreshSharedData(profile.id);
 
     return {
       message: result.message,
