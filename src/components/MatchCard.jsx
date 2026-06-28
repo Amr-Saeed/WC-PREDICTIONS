@@ -62,7 +62,9 @@ export default function MatchCard({ match, prediction, result, onOpen }) {
               ? "Prediction closed"
               : "Tap to predict"}
         </span>
-        <span>{locked ? "match already started" : ""}</span>
+        <span>
+          {locked ? "match already started" : "Predict Before Match Starts"}
+        </span>
         {isScored && (
           <span>
             Final
