@@ -193,23 +193,39 @@ export async function clearPrediction(userId, matchId) {
   if (error) throw error;
 }
 
-export async function getAllPredictions() {
+// export async function getAllPredictions() {
+//   const client = requireClient();
+//   const { data, error } = await client
+//     .from("predictions")
+//     .select("user_id, match_id, home_score, away_score, method");
+
+//   if (error) throw error;
+
+//   return (data || []).reduce((acc, row) => {
+//     if (!acc[row.user_id]) acc[row.user_id] = {};
+//     acc[row.user_id][row.match_id] = {
+//       homeScore: row.home_score,
+//       awayScore: row.away_score,
+//       method: row.method,
+//     };
+//     return acc;
+//   }, {});
+// }
+
+export async function getLeaderboard() {
   const client = requireClient();
-  const { data, error } = await client
-    .from("predictions")
-    .select("user_id, match_id, home_score, away_score, method");
+
+  const { data, error } = await client.rpc("get_leaderboard");
 
   if (error) throw error;
 
-  return (data || []).reduce((acc, row) => {
-    if (!acc[row.user_id]) acc[row.user_id] = {};
-    acc[row.user_id][row.match_id] = {
-      homeScore: row.home_score,
-      awayScore: row.away_score,
-      method: row.method,
-    };
-    return acc;
-  }, {});
+  return (data || []).map((row) => ({
+    id: row.id,
+    name: row.display_name,
+    predicted: Number(row.predicted),
+    correct: Number(row.correct),
+    total: Number(row.total),
+  }));
 }
 
 export async function getResults() {

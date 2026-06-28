@@ -11,7 +11,8 @@ import {
   saveResultsBatch,
   savePrediction as persistPrediction,
   clearPrediction as persistClearPrediction,
-  getAllPredictions,
+  getLeaderboard,
+  getPredictions,
   listProfiles,
   signInWithEmail,
   signOut,
@@ -24,40 +25,40 @@ import MatchesView from "./components/MatchesView";
 import MatchModal from "./components/MatchModal";
 import LeaderboardView from "./components/LeaderboardView";
 
-function buildLeaderboard(profiles, predictionsByUser, results) {
-  return profiles
-    .map((profile) => {
-      const preds = predictionsByUser[profile.id] || {};
-      let total = 0;
-      let correct = 0;
-      let predicted = 0;
+// function buildLeaderboard(profiles, predictionsByUser, results) {
+//   return profiles
+//     .map((profile) => {
+//       const preds = predictionsByUser[profile.id] || {};
+//       let total = 0;
+//       let correct = 0;
+//       let predicted = 0;
 
-      MATCHES.forEach((match) => {
-        const prediction = preds[match.id];
-        const result = results[match.id];
+//       MATCHES.forEach((match) => {
+//         const prediction = preds[match.id];
+//         const result = results[match.id];
 
-        if (prediction) predicted += 1;
+//         if (prediction) predicted += 1;
 
-        const points = computePoints(prediction, result);
-        if (points > 0) correct += 1;
-        total += points;
-      });
+//         const points = computePoints(prediction, result);
+//         if (points > 0) correct += 1;
+//         total += points;
+//       });
 
-      return {
-        id: profile.id,
-        name: profile.display_name,
-        total,
-        correct,
-        predicted,
-      };
-    })
-    .sort(
-      (a, b) =>
-        b.total - a.total ||
-        b.correct - a.correct ||
-        a.name.localeCompare(b.name),
-    );
-}
+//       return {
+//         id: profile.id,
+//         name: profile.display_name,
+//         total,
+//         correct,
+//         predicted,
+//       };
+//     })
+//     .sort(
+//       (a, b) =>
+//         b.total - a.total ||
+//         b.correct - a.correct ||
+//         a.name.localeCompare(b.name),
+//     );
+// }
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -71,18 +72,15 @@ export default function App() {
   const [error, setError] = useState("");
 
   const refreshSharedData = async (userId) => {
-    const [profiles, allPredictions, allResults] = await Promise.all([
-      listProfiles(),
-      getAllPredictions(),
+    const [leaderboard, myPredictions, allResults] = await Promise.all([
+      getLeaderboard(),
+      getPredictions(userId),
       getResults(),
     ]);
 
+    setLeaderboard(leaderboard);
+    setPredictions(myPredictions);
     setResults(allResults);
-    setLeaderboard(buildLeaderboard(profiles, allPredictions, allResults));
-
-    if (userId) {
-      setPredictions(allPredictions[userId] || {});
-    }
   };
 
   const loadKickoffTimes = async () => {
