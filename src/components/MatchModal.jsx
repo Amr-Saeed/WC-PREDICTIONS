@@ -1,15 +1,23 @@
 import { useState } from "react";
 import { flag, methodLabel, METHODS } from "../data/matches";
 
-export default function MatchModal({ match, prediction, result, onClose, onSave, onClear, onSaveResult }) {
-  const [home, setHome] = useState(prediction ? String(prediction.homeScore) : "");
-  const [away, setAway] = useState(prediction ? String(prediction.awayScore) : "");
-  const [method, setMethod] = useState(prediction ? prediction.method : "regular");
-
-  const [adminOpen, setAdminOpen] = useState(false);
-  const [rHome, setRHome] = useState(result ? String(result.homeScore) : "");
-  const [rAway, setRAway] = useState(result ? String(result.awayScore) : "");
-  const [rMethod, setRMethod] = useState(result ? result.method : "regular");
+export default function MatchModal({
+  match,
+  prediction,
+  result,
+  onClose,
+  onSave,
+  onClear,
+}) {
+  const [home, setHome] = useState(
+    prediction ? String(prediction.homeScore) : "",
+  );
+  const [away, setAway] = useState(
+    prediction ? String(prediction.awayScore) : "",
+  );
+  const [method, setMethod] = useState(
+    prediction ? prediction.method : "regular",
+  );
 
   const isDraw = home !== "" && away !== "" && Number(home) === Number(away);
   const canSave =
@@ -23,11 +31,6 @@ export default function MatchModal({ match, prediction, result, onClose, onSave,
     if (!canSave) return;
     onSave({ homeScore: Number(home), awayScore: Number(away), method });
     onClose();
-  };
-
-  const submitResult = () => {
-    if (rHome === "" || rAway === "") return;
-    onSaveResult({ homeScore: Number(rHome), awayScore: Number(rAway), method: rMethod });
   };
 
   const winnerName = (() => {
@@ -93,7 +96,10 @@ export default function MatchModal({ match, prediction, result, onClose, onSave,
         {winnerName && (
           <div className="winner-note">
             You're picking <b>{winnerName}</b> to win{" "}
-            {method !== "regular" ? "in " + methodLabel(method).toLowerCase() : "in regular time"}.
+            {method !== "regular"
+              ? "in " + methodLabel(method).toLowerCase()
+              : "in regular time"}
+            .
           </div>
         )}
         {isDraw && method === "regular" && (
@@ -115,60 +121,6 @@ export default function MatchModal({ match, prediction, result, onClose, onSave,
           >
             Clear my prediction
           </button>
-        )}
-
-        <div className="admin-toggle" onClick={() => setAdminOpen((o) => !o)}>
-          {adminOpen ? "Hide actual result entry" : "Enter actual match result (admin)"}
-        </div>
-
-        {adminOpen && (
-          <div className="admin-box">
-            <div className="field-label">Actual Final Score</div>
-            <div className="teams-row" style={{ marginBottom: 8 }}>
-              <div className="team-col">
-                <span className="name">{match.home}</span>
-              </div>
-              <input
-                className="score-input"
-                type="number"
-                min="0"
-                max="20"
-                value={rHome}
-                onChange={(e) => setRHome(e.target.value)}
-              />
-              <span className="vs-divider">VS</span>
-              <input
-                className="score-input"
-                type="number"
-                min="0"
-                max="20"
-                value={rAway}
-                onChange={(e) => setRAway(e.target.value)}
-              />
-              <div className="team-col">
-                <span className="name">{match.away}</span>
-              </div>
-            </div>
-            <div className="field-label">Decided by</div>
-            <div className="method-options">
-              {METHODS.map((m) => (
-                <div
-                  key={m.key}
-                  className={"method-chip" + (rMethod === m.key ? " sel" : "")}
-                  onClick={() => setRMethod(m.key)}
-                >
-                  {m.label}
-                </div>
-              ))}
-            </div>
-            <button
-              className="save-btn"
-              style={{ background: "linear-gradient(135deg,#e8c468,#b9913a)" }}
-              onClick={submitResult}
-            >
-              Save Actual Result
-            </button>
-          </div>
         )}
       </div>
     </div>

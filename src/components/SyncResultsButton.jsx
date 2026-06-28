@@ -11,11 +11,11 @@ export default function SyncResultsButton({ onSynced }) {
     try {
       const { results, unmatched } = await fetchRealResults();
       const count = Object.keys(results).length;
-      onSynced(results);
+      await onSynced(results);
       setStatus("done");
       if (unmatched.length > 0) {
         setMessage(
-          `Synced ${count} finished match${count === 1 ? "" : "es"}. ${unmatched.length} match(es) couldn't be matched by team name — check footballApi.js name aliases.`
+          `Synced ${count} finished match${count === 1 ? "" : "es"}. ${unmatched.length} match(es) couldn't be matched by team name — check footballApi.js name aliases.`,
         );
       } else {
         setMessage(`Synced ${count} finished match${count === 1 ? "" : "es"}.`);
@@ -28,11 +28,17 @@ export default function SyncResultsButton({ onSynced }) {
 
   return (
     <div className="sync-box">
-      <button className="sync-btn" onClick={handleSync} disabled={status === "loading"}>
+      <button
+        className="sync-btn"
+        onClick={handleSync}
+        disabled={status === "loading"}
+      >
         {status === "loading" ? "Syncing…" : "🔄 Sync real results from API"}
       </button>
       {message && (
-        <div className={"sync-message" + (status === "error" ? " error" : "")}>{message}</div>
+        <div className={"sync-message" + (status === "error" ? " error" : "")}>
+          {message}
+        </div>
       )}
     </div>
   );

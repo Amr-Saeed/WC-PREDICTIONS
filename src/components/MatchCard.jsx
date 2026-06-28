@@ -1,11 +1,20 @@
 import { flag, methodLabel } from "../data/matches";
 
+function formatEgyptLabel(kickoff) {
+  if (!kickoff?.kickoffUtc) return "";
+  return `${kickoff.kickoffEgypt || ""}`;
+}
+
 export default function MatchCard({ match, prediction, result, onOpen }) {
-  const isScored = result && result.homeScore !== "" && result.homeScore !== undefined;
+  const isScored =
+    result && result.homeScore !== "" && result.homeScore !== undefined;
+  const kickoffLabel = formatEgyptLabel(match.kickoff);
 
   return (
     <div
-      className={"match-card" + (prediction ? " done" : "") + (isScored ? " scored" : "")}
+      className={
+        "match-card" + (prediction ? " done" : "") + (isScored ? " scored" : "")
+      }
       onClick={() => onOpen(match)}
     >
       <div className="mc-row">
@@ -14,7 +23,11 @@ export default function MatchCard({ match, prediction, result, onOpen }) {
           {match.home}
         </div>
         <div className="mc-score">
-          {prediction ? prediction.homeScore : isScored ? result.homeScore : "–"}
+          {prediction
+            ? prediction.homeScore
+            : isScored
+              ? result.homeScore
+              : "–"}
         </div>
       </div>
       <div className="mc-vs">VS</div>
@@ -24,17 +37,31 @@ export default function MatchCard({ match, prediction, result, onOpen }) {
           {match.away}
         </div>
         <div className="mc-score">
-          {prediction ? prediction.awayScore : isScored ? result.awayScore : "–"}
+          {prediction
+            ? prediction.awayScore
+            : isScored
+              ? result.awayScore
+              : "–"}
         </div>
       </div>
       <div className="mc-meta">
-        <span>{prediction ? "Your pick: " + methodLabel(prediction.method) : "Tap to predict"}</span>
+        <span>
+          {prediction
+            ? "Your pick: " + methodLabel(prediction.method)
+            : "Tap to predict"}
+        </span>
         {isScored && (
           <span>
-            Final{result.method !== "regular" ? " · " + methodLabel(result.method) : ""}
+            Final
+            {result.method !== "regular"
+              ? " · " + methodLabel(result.method)
+              : ""}
           </span>
         )}
       </div>
+      {kickoffLabel && (
+        <div className="mc-kickoff">Kickoff: {kickoffLabel}</div>
+      )}
     </div>
   );
 }

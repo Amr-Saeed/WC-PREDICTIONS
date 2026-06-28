@@ -46,6 +46,65 @@ function mapDuration(duration) {
   return "regular"; // REGULAR or anything else
 }
 
+function formatEgyptTime(utcDate) {
+  if (!utcDate) return "";
+
+  const date = new Date(utcDate);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "Africa/Cairo",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function formatEgyptDateKey(utcDate) {
+  if (!utcDate) return "";
+
+  const date = new Date(utcDate);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Cairo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function buildMatchLookup(apiMatches) {
+  const lookup = new Map();
+  apiMatches.forEach((m) => {
+    const home = normalizeName(m.homeTeam?.name || "");
+    const away = normalizeName(m.awayTeam?.name || "");
+    const key = [home, away].sort().join("__");
+    lookup.set(key, m);
+  });
+  return lookup;
+}
+
+function buildMatchTimes(apiMatches) {
+  const lookup = buildMatchLookup(apiMatches);
+  const kickoffs = {};
+
+  MATCHES.forEach((ourMatch) => {
+    const key = [ourMatch.home, ourMatch.away].sort().join("__");
+    const apiMatch = lookup.get(key);
+
+    if (!apiMatch || !apiMatch.utcDate) return;
+
+    kickoffs[ourMatch.id] = {
+      kickoffUtc: apiMatch.utcDate,
+      kickoffEgyptDateKey: formatEgyptDateKey(apiMatch.utcDate),
+      kickoffEgypt: formatEgyptTime(apiMatch.utcDate),
+      status: apiMatch.status || "",
+    };
+  });
+
+  return kickoffs;
+}
+
 // Fetches all matches for the competition and returns only the finished ones,
 // matched up against our local MATCHES list by team names.
 //
@@ -70,14 +129,19 @@ export async function fetchRealResults() {
   const data = await res.json();
   const apiMatches = data.matches || [];
 
+  console.log(
+    "[football-data][client] fetched matches:",
+    apiMatches.map((match) => ({
+      id: match.id,
+      status: match.status,
+      kickoffUtc: match.utcDate,
+      home: match.homeTeam?.name,
+      away: match.awayTeam?.name,
+    })),
+  );
+
   // Build a quick lookup: "TeamA__TeamB" (order-independent) -> api match
-  const lookup = new Map();
-  apiMatches.forEach((m) => {
-    const home = normalizeName(m.homeTeam?.name || "");
-    const away = normalizeName(m.awayTeam?.name || "");
-    const key = [home, away].sort().join("__");
-    lookup.set(key, m);
-  });
+  const lookup = buildMatchLookup(apiMatches);
 
   const results = {};
   const unmatched = [];
@@ -119,4 +183,31 @@ export async function fetchRealResults() {
   });
 
   return { results, unmatched };
+}
+
+export async function fetchMatchKickoffs() {
+  const res = await fetch("/api/results");
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Request failed with status ${res.status}`);
+  }
+
+  const data = await res.json();
+  const apiMatches = data.matches || [];
+
+  console.log(
+    "[football-data][client] kickoff times:",
+    buildMatchTimes(apiMatches),
+  );
+
+  return buildMatchTimes(apiMatches);
+}
+
+export function formatEgyptKickoff(utcDate) {
+  return formatEgyptTime(utcDate);
+}
+
+export function formatEgyptKickoffDateKey(utcDate) {
+  return formatEgyptDateKey(utcDate);
 }

@@ -50,6 +50,19 @@ function resultsApiPlugin(token) {
           }
 
           const data = await apiRes.json();
+
+          const matches = Array.isArray(data.matches) ? data.matches : [];
+          console.log(
+            "[football-data][dev] fetched matches:",
+            matches.map((match) => ({
+              id: match.id,
+              status: match.status,
+              kickoffUtc: match.utcDate,
+              home: match.homeTeam?.name,
+              away: match.awayTeam?.name,
+            })),
+          );
+
           res.statusCode = 200;
           res.end(JSON.stringify(data));
         } catch (error) {
@@ -67,10 +80,107 @@ function resultsApiPlugin(token) {
   };
 }
 
+function saveResultsApiPlugin(supabaseUrl, serviceRoleKey) {
+  return {
+    name: "dev-save-results-api",
+    configureServer(server) {
+      server.middlewares.use("/api/save-results", async (req, res, next) => {
+        if (req.method !== "POST") {
+          next();
+          return;
+        }
+
+        if (!supabaseUrl || !serviceRoleKey) {
+          res.statusCode = 500;
+          res.setHeader("Content-Type", "application/json");
+          res.end(
+            JSON.stringify({
+              error:
+                "Missing SUPABASE_URL (or VITE_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY for local dev.",
+            }),
+          );
+          return;
+        }
+
+        const chunks = [];
+        for await (const chunk of req) chunks.push(chunk);
+
+        let payload = {};
+        try {
+          payload = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+        } catch {
+          payload = {};
+        }
+
+        const results = payload.results || {};
+        const rows = Object.entries(results).map(([matchId, result]) => ({
+          match_id: matchId,
+          home_score: result.homeScore,
+          away_score: result.awayScore,
+          method: result.method || "regular",
+        }));
+
+        if (rows.length === 0) {
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({ results: {}, count: 0 }));
+          return;
+        }
+
+        try {
+          const { createClient } = await import("@supabase/supabase-js");
+          const client = createClient(supabaseUrl, serviceRoleKey);
+          const { data, error } = await client
+            .from("results")
+            .upsert(rows, { onConflict: "match_id" })
+            .select("match_id, home_score, away_score, method");
+
+          if (error) {
+            res.statusCode = 500;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ error: error.message }));
+            return;
+          }
+
+          const savedResults = (data || []).reduce((acc, row) => {
+            acc[row.match_id] = {
+              homeScore: row.home_score,
+              awayScore: row.away_score,
+              method: row.method,
+            };
+            return acc;
+          }, {});
+
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "application/json");
+          res.end(
+            JSON.stringify({ results: savedResults, count: rows.length }),
+          );
+        } catch (error) {
+          res.statusCode = 500;
+          res.setHeader("Content-Type", "application/json");
+          res.end(
+            JSON.stringify({
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          );
+        }
+      });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
   return {
-    plugins: [react(), resultsApiPlugin(env.FOOTBALL_DATA_TOKEN)],
+    plugins: [
+      react(),
+      resultsApiPlugin(env.FOOTBALL_DATA_TOKEN),
+      saveResultsApiPlugin(
+        env.SUPABASE_URL || env.VITE_SUPABASE_URL,
+        env.SUPABASE_SERVICE_ROLE_KEY,
+      ),
+    ],
   };
 });

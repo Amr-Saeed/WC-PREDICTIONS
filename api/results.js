@@ -26,16 +26,26 @@ export default async function handler(req, res) {
 
     const data = await apiRes.json();
 
+    const matches = Array.isArray(data.matches) ? data.matches : [];
+    console.log(
+      "[football-data] fetched matches:",
+      matches.map((match) => ({
+        id: match.id,
+        status: match.status,
+        kickoffUtc: match.utcDate,
+        home: match.homeTeam?.name,
+        away: match.awayTeam?.name,
+      })),
+    );
+
     // Cache for 60 seconds at the edge so repeated clicks don't burn through
     // the free tier's 10 requests/minute limit.
     res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=30");
     return res.status(200).json(data);
   } catch (err) {
-    return res
-      .status(500)
-      .json({
-        error: "Failed to reach football-data.org",
-        details: err.message,
-      });
+    return res.status(500).json({
+      error: "Failed to reach football-data.org",
+      details: err.message,
+    });
   }
 }
