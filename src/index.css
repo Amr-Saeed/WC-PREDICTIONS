@@ -702,3 +702,7 @@ body {
   margin-top: 40px;
   line-height: 1.6;
 }
+.match-card.locked {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
