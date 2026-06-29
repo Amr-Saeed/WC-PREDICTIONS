@@ -61,21 +61,38 @@ import LeaderboardView from "./components/LeaderboardView";
 //         a.name.localeCompare(b.name),
 //     );
 // }
+
 async function linkPushSubscription(userId) {
   try {
+    // Log in to OneSignal using your Supabase user id
     await OneSignal.login(userId);
-    await new Promise((r) => setTimeout(r, 2000));
 
-    console.log("Dashboard should show this:");
-    console.log("OneSignal ID:", OneSignal.User.onesignalId);
-    console.log("Subscription:", OneSignal.User.PushSubscription.id);
-    console.log("External:", userId);
-    const onesignalId = OneSignal.User.onesignalId; // ✅ lowercase 's'
+    // Wait until OneSignal has finished creating/linking the user
+    let onesignalId = null;
+
+    for (let i = 0; i < 20; i++) {
+      onesignalId = OneSignal.User.onesignalId;
+
+      if (onesignalId) break;
+
+      console.log(`Waiting for OneSignal ID... (${i + 1}/20)`);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+
     const subscriptionId = OneSignal.User.PushSubscription.id;
 
-    console.log("OneSignal User:", onesignalId); // ✅ must match above exactly
-    console.log("Subscription:", subscriptionId);
-    console.log("Supabase user:", userId);
+    console.log("=================================");
+    console.log("Permission:", OneSignal.Notifications.permission);
+    console.log("Subscribed:", OneSignal.User.PushSubscription.optedIn);
+    console.log("OneSignal User ID:", onesignalId);
+    console.log("Subscription ID:", subscriptionId);
+    console.log("Supabase User ID:", userId);
+    console.log("=================================");
+
+    if (!onesignalId) {
+      console.error("❌ OneSignal User ID is still null.");
+      return;
+    }
 
     const { data, error } = await supabase
       .from("push_subscriptions")
@@ -90,9 +107,18 @@ async function linkPushSubscription(userId) {
       )
       .select();
 
-    console.log("Supabase response:", data, error);
+    if (error) {
+      console.error("❌ Supabase Error:");
+      console.error("Code:", error.code);
+      console.error("Message:", error.message);
+      console.error("Details:", error.details);
+      console.error("Hint:", error.hint);
+    } else {
+      console.log("✅ Saved to Supabase:");
+      console.log(data);
+    }
   } catch (err) {
-    console.error("Failed to link push subscription:", err);
+    console.error("❌ linkPushSubscription failed:", err);
   }
 }
 export default function App() {
