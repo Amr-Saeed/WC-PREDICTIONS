@@ -1,36 +1,108 @@
-// Determines the winner given two scores. Returns "home", "away", "draw", or null if incomplete.
-export function winnerOf(homeScore, awayScore) {
-  if (homeScore === "" || awayScore === "" || homeScore === null || awayScore === null) {
+// Client-side mirror of the public.points_for_prediction SQL function.
+// Used only to show an explanatory breakdown on match cards — the
+// leaderboard itself is always calculated server-side via get_leaderboard().
+//
+// Keep these four constants in sync with the SQL function's constants.
+export const WINNER_POINTS = 3;
+export const EXACT_SCORE_BONUS = 2;
+export const DRAW_BONUS = 2;
+export const EXTRA_TIME_EXACT_BONUS = 1;
+
+function winnerSide(home, away, method, extraHome, extraAway, penWinner) {
+  if (
+    home === null ||
+    away === null ||
+    home === undefined ||
+    away === undefined
+  )
     return null;
+  if (home !== away) return home > away ? "home" : "away";
+
+  if (
+    method === "extra_time" &&
+    extraHome != null &&
+    extraAway != null &&
+    extraHome !== extraAway
+  ) {
+    return extraHome > extraAway ? "home" : "away";
   }
-  const h = Number(homeScore);
-  const a = Number(awayScore);
-  if (Number.isNaN(h) || Number.isNaN(a)) return null;
-  if (h > a) return "home";
-  if (a > h) return "away";
-  return "draw";
+  if (method === "penalties" && penWinner) {
+    return penWinner;
+  }
+  return null;
 }
 
-// Points logic:
-// - Correct winner (home/away) => 1 point
-// - Correct winner AND correctly called Extra Time => +1 bonus (2 total)
-// - Correct winner AND correctly called Penalties => +2 bonus (3 total)
-// - Bonus is only awarded if the base winner prediction was already correct.
-export function computePoints(prediction, result) {
-  if (!prediction || !result) return 0;
-  if (result.homeScore === "" || result.homeScore === undefined || result.homeScore === null) {
-    return 0;
+// Returns { total, breakdown: [{ label, points }] } explaining the score.
+export function computePointsBreakdown(prediction, result) {
+  const breakdown = [];
+
+  if (!prediction || !result) return { total: 0, breakdown };
+  if (result.homeScore === null || result.homeScore === undefined)
+    return { total: 0, breakdown };
+
+  const predictedWinner = winnerSide(
+    prediction.homeScore,
+    prediction.awayScore,
+    prediction.method,
+    prediction.extraHome,
+    prediction.extraAway,
+    prediction.penWinner,
+  );
+  const actualWinner = winnerSide(
+    result.homeScore,
+    result.awayScore,
+    result.method,
+    result.extraHome,
+    result.extraAway,
+    result.penWinner,
+  );
+
+  if (!predictedWinner || !actualWinner || predictedWinner !== actualWinner) {
+    return { total: 0, breakdown: [{ label: "Incorrect winner", points: 0 }] };
   }
 
-  const predictedWinner = winnerOf(prediction.homeScore, prediction.awayScore);
-  const actualWinner = winnerOf(result.homeScore, result.awayScore);
+  let total = WINNER_POINTS;
+  breakdown.push({ label: "Correct winner", points: WINNER_POINTS });
 
-  if (!predictedWinner || predictedWinner === "draw") return 0;
-  if (!actualWinner || actualWinner === "draw") return 0;
-  if (predictedWinner !== actualWinner) return 0;
+  const actualDraw90 = result.homeScore === result.awayScore;
+  const predictedDraw90 = prediction.homeScore === prediction.awayScore;
 
-  let points = 1;
-  if (prediction.method === "extra_time" && result.method === "extra_time") points += 1;
-  if (prediction.method === "penalties" && result.method === "penalties") points += 2;
-  return points;
+  if (!actualDraw90) {
+    if (
+      prediction.homeScore === result.homeScore &&
+      prediction.awayScore === result.awayScore
+    ) {
+      total += EXACT_SCORE_BONUS;
+      breakdown.push({ label: "Exact final score", points: EXACT_SCORE_BONUS });
+    }
+  } else {
+    if (predictedDraw90) {
+      total += DRAW_BONUS;
+      breakdown.push({
+        label: "Correctly predicted a draw after 90 minutes",
+        points: DRAW_BONUS,
+      });
+    }
+    if (
+      result.method === "extra_time" &&
+      prediction.method === "extra_time" &&
+      prediction.extraHome != null &&
+      prediction.extraAway != null &&
+      prediction.extraHome === result.extraHome &&
+      prediction.extraAway === result.extraAway
+    ) {
+      total += EXTRA_TIME_EXACT_BONUS;
+      breakdown.push({
+        label: "Exact extra-time score",
+        points: EXTRA_TIME_EXACT_BONUS,
+      });
+    }
+  }
+
+  return { total, breakdown };
+}
+
+// Kept for backwards compatibility, in case anything else still imports it.
+export function computePoints(prediction, result) {
+  return computePointsBreakdown(prediction, result).total;
 }

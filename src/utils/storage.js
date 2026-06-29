@@ -152,7 +152,9 @@ export async function getPredictions(userId) {
   const client = requireClient();
   const { data, error } = await client
     .from("predictions")
-    .select("match_id, home_score, away_score, method")
+    .select(
+      "match_id, home_score, away_score, method, extra_home, extra_away, pen_winner, pen_home, pen_away",
+    )
     .eq("user_id", userId);
 
   if (error) throw error;
@@ -162,6 +164,11 @@ export async function getPredictions(userId) {
       homeScore: row.home_score,
       awayScore: row.away_score,
       method: row.method,
+      extraHome: row.extra_home,
+      extraAway: row.extra_away,
+      penWinner: row.pen_winner,
+      penHome: row.pen_home,
+      penAway: row.pen_away,
     };
     return acc;
   }, {});
@@ -176,6 +183,11 @@ export async function savePrediction(userId, matchId, prediction) {
       home_score: prediction.homeScore,
       away_score: prediction.awayScore,
       method: prediction.method || "regular",
+      extra_home: prediction.extraHome ?? null,
+      extra_away: prediction.extraAway ?? null,
+      pen_winner: prediction.penWinner ?? null,
+      pen_home: prediction.penHome ?? null,
+      pen_away: prediction.penAway ?? null,
     },
     { onConflict: "user_id,match_id" },
   );
@@ -232,7 +244,9 @@ export async function getResults() {
   const client = requireClient();
   const { data, error } = await client
     .from("results")
-    .select("match_id, home_score, away_score, method");
+    .select(
+      "match_id, home_score, away_score, method, extra_home, extra_away, pen_winner, pen_home, pen_away",
+    );
 
   if (error) throw error;
 
@@ -241,6 +255,11 @@ export async function getResults() {
       homeScore: row.home_score,
       awayScore: row.away_score,
       method: row.method,
+      extraHome: row.extra_home,
+      extraAway: row.extra_away,
+      penWinner: row.pen_winner,
+      penHome: row.pen_home,
+      penAway: row.pen_away,
     };
     return acc;
   }, {});

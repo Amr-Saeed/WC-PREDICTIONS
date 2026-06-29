@@ -706,3 +706,26 @@ body {
   opacity: 0.7;
   cursor: not-allowed;
 }
+.mc-points {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.mc-points-total {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--gold-soft);
+}
+.mc-points-reason {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  line-height: 1.4;
+}
+.method-chip.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}

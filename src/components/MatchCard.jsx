@@ -1,4 +1,5 @@
 import { flag, methodLabel } from "../data/matches";
+import { computePointsBreakdown } from "../utils/scoring";
 
 function formatEgyptLabel(kickoff) {
   if (!kickoff?.kickoffUtc) return "";
@@ -8,11 +9,21 @@ function isMatchLocked(kickoff) {
   if (!kickoff?.kickoffUtc) return false;
   return new Date() >= new Date(kickoff.kickoffUtc);
 }
+
 export default function MatchCard({ match, prediction, result, onOpen }) {
   const isScored =
-    result && result.homeScore !== "" && result.homeScore !== undefined;
+    result &&
+    result.homeScore !== "" &&
+    result.homeScore !== undefined &&
+    result.homeScore !== null;
   const kickoffLabel = formatEgyptLabel(match.kickoff);
   const locked = isMatchLocked(match.kickoff);
+
+  const { total, breakdown } =
+    isScored && prediction
+      ? computePointsBreakdown(prediction, result)
+      : { total: 0, breakdown: [] };
+
   return (
     <div
       className={
@@ -74,6 +85,20 @@ export default function MatchCard({ match, prediction, result, onOpen }) {
           </span>
         )}
       </div>
+
+      {isScored && prediction && (
+        <div className="mc-points">
+          <span className="mc-points-total">
+            {total > 0 ? `+${total} pts` : "0 pts"}
+          </span>
+          {breakdown.length > 0 && (
+            <span className="mc-points-reason">
+              {breakdown.map((b) => `${b.label} (+${b.points})`).join(" · ")}
+            </span>
+          )}
+        </div>
+      )}
+
       {kickoffLabel && (
         <div className="mc-kickoff">Kickoff: {kickoffLabel}</div>
       )}
