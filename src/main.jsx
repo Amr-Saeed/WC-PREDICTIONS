@@ -9,9 +9,10 @@ async function startApp() {
   await OneSignal.init({
     appId: "00c6284a-0f9c-42b7-916d-e615df732aa0",
     allowLocalhostAsSecureOrigin: true,
-    serviceWorkerPath: "OneSignalSDKWorker.js",
+    serviceWorkerPath: "/public/OneSignalSDKWorker.js",
     serviceWorkerParam: { scope: "/" },
   });
+  await OneSignal.login(userId);
 
   ReactDOM.createRoot(document.getElementById("root")).render(
     <React.StrictMode>

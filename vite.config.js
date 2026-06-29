@@ -179,7 +179,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       VitePWA({
-        registerType: "autoUpdate",
+        disable: true,
 
         includeAssets: ["favicon.ico", "apple-touch-icon.png"],
 
