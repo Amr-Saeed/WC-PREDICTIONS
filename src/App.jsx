@@ -66,10 +66,8 @@ async function linkPushSubscription(userId) {
     await OneSignal.login(userId);
 
     const onesignalId = OneSignal.User.onesignalId;
-    const subscriptionId = OneSignal.User.PushSubscription.id;
 
     console.log("OneSignal User:", onesignalId);
-    console.log("Subscription:", subscriptionId);
     console.log("Supabase user:", userId);
 
     const { data, error } = await supabase
@@ -77,7 +75,7 @@ async function linkPushSubscription(userId) {
       .upsert(
         {
           user_id: userId,
-          onesignal_id: onesignalId,
+          onesignal_id: oneSignalId,
         },
         {
           onConflict: "user_id,onesignal_id",
