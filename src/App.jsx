@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { MATCHES } from "./data/matches";
 import { computePoints } from "./utils/scoring";
-import { fetchMatchKickoffs } from "./utils/footballApi";
+import { fetchMatchKickoffs, fetchRealResults } from "./utils/footballApi";
 import {
   supabase,
   getCurrentUser,
@@ -70,7 +70,7 @@ export default function App() {
   const [activeMatch, setActiveMatch] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
+  const [syncingLeaderboard, setSyncingLeaderboard] = useState(false);
   const refreshSharedData = async (userId) => {
     const [leaderboard, myPredictions, allResults] = await Promise.all([
       getLeaderboard(),
@@ -158,12 +158,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (user && view === "leaderboard") {
-      refreshSharedData(user.id).catch((err) => {
-        setError(err.message || "Failed to refresh leaderboard.");
-      });
-    }
-  }, [user, view]);
+    if (view !== "leaderboard" || !user) return;
+
+    syncResults();
+  }, [view, user]);
 
   const handleEnter = async (name, email) => {
     setError("");
@@ -202,6 +200,25 @@ export default function App() {
   const clearPrediction = async (matchId) => {
     await persistClearPrediction(user.id, matchId);
     await refreshSharedData(user.id);
+  };
+
+  const syncResults = async () => {
+    if (syncingLeaderboard) return;
+
+    setSyncingLeaderboard(true);
+
+    try {
+      console.log("Syncing real results from API...");
+
+      const { results } = await fetchRealResults();
+
+      await handleSyncResults(results);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "Failed to sync results.");
+    } finally {
+      setSyncingLeaderboard(false);
+    }
   };
 
   const handleSyncResults = async (resultsBatch) => {
@@ -246,13 +263,20 @@ export default function App() {
         />
       )}
 
-      {view === "leaderboard" && (
-        <LeaderboardView
-          leaderboard={leaderboard}
-          currentUserId={user.id}
-          onSync={handleSyncResults}
-        />
-      )}
+      {view === "leaderboard" &&
+        (syncingLeaderboard ? (
+          <div className="leaderboard-loading">
+            <div className="spinner"></div>
+            <p>Updating latest match results...</p>
+          </div>
+        ) : (
+          <LeaderboardView
+            leaderboard={leaderboard}
+            currentUserId={user.id}
+            onSync={syncResults}
+            syncing={syncingLeaderboard}
+          />
+        ))}
 
       {activeMatch && (
         <MatchModal

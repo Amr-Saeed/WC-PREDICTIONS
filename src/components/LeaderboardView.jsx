@@ -4,12 +4,12 @@ export default function LeaderboardView({
   leaderboard,
   currentUserId,
   onSync,
+  syncing,
 }) {
   console.log("LeaderboardView rendered with leaderboard:", leaderboard);
   return (
     <div>
-      <SyncResultsButton onSynced={onSync} />
-
+      <SyncResultsButton onSync={onSync} syncing={syncing} />
       {leaderboard.length === 0 ? (
         <div className="empty-state">
           No players yet. Predictions you make will show up here once others
