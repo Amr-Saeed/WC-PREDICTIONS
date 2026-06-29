@@ -64,7 +64,12 @@ import LeaderboardView from "./components/LeaderboardView";
 async function linkPushSubscription(userId) {
   try {
     await OneSignal.login(userId);
+    await new Promise((r) => setTimeout(r, 2000));
 
+    console.log("Dashboard should show this:");
+    console.log("OneSignal ID:", OneSignal.User.onesignalId);
+    console.log("Subscription:", OneSignal.User.PushSubscription.id);
+    console.log("External:", userId);
     const onesignalId = OneSignal.User.onesignalId; // ✅ lowercase 's'
     const subscriptionId = OneSignal.User.PushSubscription.id;
 
@@ -75,8 +80,13 @@ async function linkPushSubscription(userId) {
     const { data, error } = await supabase
       .from("push_subscriptions")
       .upsert(
-        { user_id: userId, onesignal_id: onesignalId }, // ✅ matches too
-        { onConflict: "user_id,onesignal_id" },
+        {
+          user_id: userId,
+          onesignal_id: onesignalId,
+        },
+        {
+          onConflict: "user_id",
+        },
       )
       .select();
 
