@@ -179,8 +179,12 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       VitePWA({
-        disable: true,
-
+        registerType: "autoUpdate",
+        injectRegister: "auto",
+        workbox: {
+          globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+          navigateFallbackDenylist: [/OneSignalSDKWorker\.js/],
+        },
         includeAssets: ["favicon.ico", "apple-touch-icon.png"],
 
         manifest: {
