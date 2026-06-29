@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { MATCHES } from "./data/matches";
 import { computePoints } from "./utils/scoring";
 import { fetchMatchKickoffs, fetchRealResults } from "./utils/footballApi";
+import OneSignal from "react-onesignal";
+
 import {
   supabase,
   getCurrentUser,
@@ -59,7 +61,23 @@ import LeaderboardView from "./components/LeaderboardView";
 //         a.name.localeCompare(b.name),
 //     );
 // }
+async function linkPushSubscription(userId) {
+  try {
+    await OneSignal.login(userId);
 
+    const subscriptionId = OneSignal.User.PushSubscription.id;
+    if (subscriptionId && supabase) {
+      await supabase
+        .from("push_subscriptions")
+        .upsert(
+          { user_id: userId, onesignal_id: subscriptionId },
+          { onConflict: "user_id,onesignal_id" },
+        );
+    }
+  } catch (err) {
+    console.warn("Failed to link push subscription:", err);
+  }
+}
 export default function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState("matches");
@@ -137,6 +155,8 @@ export default function App() {
               currentUser.email,
             ));
           setUser({ id: profile.id, name: profile.display_name });
+          // 👇 identify returning user too
+          await linkPushSubscription(profile.id);
           await refreshSharedData(currentUser.id);
         }
       } catch (err) {
@@ -175,6 +195,8 @@ export default function App() {
       normalizedEmail,
     );
     setUser({ id: profile.id, name: profile.display_name });
+    // 👇 identify this user to OneSignal + save subscription
+    await linkPushSubscription(profile.id);
     setView("matches");
     await refreshSharedData(profile.id);
 
@@ -185,6 +207,8 @@ export default function App() {
 
   const switchUser = async () => {
     await signOut();
+    await OneSignal.logout(); // 👈 add this
+
     setUser(null);
     setPredictions({});
     setResults({});
