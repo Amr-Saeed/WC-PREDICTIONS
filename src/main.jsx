@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import OneSignal from "react-onesignal";
+import { getCurrentUser } from "./utils/storage";
 
 import App from "./App.jsx";
 import "./index.css";
@@ -12,7 +13,11 @@ async function startApp() {
     serviceWorkerPath: "/OneSignalSDKWorker.js",
     serviceWorkerParam: { scope: "/" },
   });
-
+  // Login BEFORE rendering so subscription always attaches to the right user
+  const currentUser = await getCurrentUser();
+  if (currentUser) {
+    await OneSignal.login(currentUser.id);
+  }
   ReactDOM.createRoot(document.getElementById("root")).render(
     <React.StrictMode>
       <App />

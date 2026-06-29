@@ -64,9 +64,6 @@ import LeaderboardView from "./components/LeaderboardView";
 
 async function linkPushSubscription(userId) {
   try {
-    // 1. Identify the user in OneSignal
-    await OneSignal.login(userId);
-
     // 2. Wait until OneSignal creates/links the user
     let onesignalId = null;
 
