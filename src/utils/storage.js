@@ -231,11 +231,14 @@ export async function getLeaderboard() {
 
   if (error) throw error;
 
+  console.log("Fetched leaderboard data:", data);
+  console.table(data);
   return (data || []).map((row) => ({
     id: row.id,
     name: row.display_name,
     predicted: Number(row.predicted),
     correct: Number(row.correct),
+
     total: Number(row.total),
   }));
 }
