@@ -64,10 +64,10 @@ import LeaderboardView from "./components/LeaderboardView";
 
 async function linkPushSubscription(userId) {
   try {
-    // Log in to OneSignal using your Supabase user id
+    // 1. Identify the user in OneSignal
     await OneSignal.login(userId);
 
-    // Wait until OneSignal has finished creating/linking the user
+    // 2. Wait until OneSignal creates/links the user
     let onesignalId = null;
 
     for (let i = 0; i < 20; i++) {
@@ -75,50 +75,57 @@ async function linkPushSubscription(userId) {
 
       if (onesignalId) break;
 
-      console.log(`Waiting for OneSignal ID... (${i + 1}/20)`);
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      console.log(`Waiting for OneSignal User... (${i + 1}/20)`);
+      await new Promise((r) => setTimeout(r, 500));
     }
 
-    const subscriptionId = OneSignal.User.PushSubscription.id;
+    if (!onesignalId) {
+      console.error("Couldn't get OneSignal User ID");
+      return;
+    }
+
+    // 3. Ask permission only if needed
+    if (!OneSignal.Notifications.permission) {
+      await OneSignal.Notifications.requestPermission();
+    }
+
+    // 4. Wait until a subscription exists
+    let subscriptionId = null;
+
+    for (let i = 0; i < 20; i++) {
+      subscriptionId = OneSignal.User.PushSubscription.id;
+
+      if (subscriptionId) break;
+
+      console.log(`Waiting for Subscription... (${i + 1}/20)`);
+      await new Promise((r) => setTimeout(r, 500));
+    }
 
     console.log("=================================");
     console.log("Permission:", OneSignal.Notifications.permission);
     console.log("Subscribed:", OneSignal.User.PushSubscription.optedIn);
-    console.log("OneSignal User ID:", onesignalId);
-    console.log("Subscription ID:", subscriptionId);
-    console.log("Supabase User ID:", userId);
+    console.log("OneSignal User:", onesignalId);
+    console.log("Subscription:", subscriptionId);
+    console.log("Supabase User:", userId);
     console.log("=================================");
 
-    if (!onesignalId) {
-      console.error("❌ OneSignal User ID is still null.");
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("push_subscriptions")
-      .upsert(
-        {
-          user_id: userId,
-          onesignal_id: onesignalId,
-        },
-        {
-          onConflict: "user_id",
-        },
-      )
-      .select();
+    const { error } = await supabase.from("push_subscriptions").upsert(
+      {
+        user_id: userId,
+        onesignal_id: onesignalId,
+      },
+      {
+        onConflict: "user_id",
+      },
+    );
 
     if (error) {
-      console.error("❌ Supabase Error:");
-      console.error("Code:", error.code);
-      console.error("Message:", error.message);
-      console.error("Details:", error.details);
-      console.error("Hint:", error.hint);
+      console.error(error);
     } else {
-      console.log("✅ Saved to Supabase:");
-      console.log(data);
+      console.log("Saved successfully.");
     }
   } catch (err) {
-    console.error("❌ linkPushSubscription failed:", err);
+    console.error(err);
   }
 }
 export default function App() {
