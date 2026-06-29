@@ -65,17 +65,29 @@ async function linkPushSubscription(userId) {
   try {
     await OneSignal.login(userId);
 
+    const onesignalId = OneSignal.User.onesignalId;
     const subscriptionId = OneSignal.User.PushSubscription.id;
-    if (subscriptionId && supabase) {
-      await supabase
-        .from("push_subscriptions")
-        .upsert(
-          { user_id: userId, onesignal_id: subscriptionId },
-          { onConflict: "user_id,onesignal_id" },
-        );
-    }
+
+    console.log("OneSignal User:", onesignalId);
+    console.log("Subscription:", subscriptionId);
+    console.log("Supabase user:", userId);
+
+    const { data, error } = await supabase
+      .from("push_subscriptions")
+      .upsert(
+        {
+          user_id: userId,
+          onesignal_id: onesignalId,
+        },
+        {
+          onConflict: "user_id,onesignal_id",
+        },
+      )
+      .select();
+
+    console.log("Supabase response:", data, error);
   } catch (err) {
-    console.warn("Failed to link push subscription:", err);
+    console.error("Failed to link push subscription:", err);
   }
 }
 export default function App() {
