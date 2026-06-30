@@ -29,12 +29,16 @@ export default async function handler(req, res) {
 
   const payload = normalizePayload(req.body);
   const results = payload.results || {};
-
   const rows = Object.entries(results).map(([matchId, result]) => ({
     match_id: matchId,
     home_score: result.homeScore,
     away_score: result.awayScore,
     method: result.method || "regular",
+    extra_home: result.extraHome ?? null,
+    extra_away: result.extraAway ?? null,
+    pen_winner: result.penWinner ?? null,
+    pen_home: result.penHome ?? null,
+    pen_away: result.penAway ?? null,
   }));
 
   if (rows.length === 0) {
@@ -45,8 +49,9 @@ export default async function handler(req, res) {
   const { data, error } = await client
     .from("results")
     .upsert(rows, { onConflict: "match_id" })
-    .select("match_id, home_score, away_score, method");
-
+    .select(
+      "match_id, home_score, away_score, method, extra_home, extra_away, pen_winner, pen_home, pen_away",
+    );
   if (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -56,6 +61,11 @@ export default async function handler(req, res) {
       homeScore: row.home_score,
       awayScore: row.away_score,
       method: row.method,
+      extraHome: row.extra_home,
+      extraAway: row.extra_away,
+      penWinner: row.pen_winner,
+      penHome: row.pen_home,
+      penAway: row.pen_away,
     };
     return acc;
   }, {});

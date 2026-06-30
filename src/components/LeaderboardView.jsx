@@ -19,7 +19,7 @@ export default function LeaderboardView({
         <>
           <div className="legend">
             <span>
-              <i style={{ background: "#19c79c" }}></i>1 pt — correct winner
+              <i style={{ background: "#19c79c" }}></i>3 pt — correct winner
             </span>
             <span>
               <i style={{ background: "#e8c468" }}></i>+1 bonus — correct Extra

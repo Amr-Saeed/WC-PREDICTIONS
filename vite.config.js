@@ -120,6 +120,11 @@ function saveResultsApiPlugin(supabaseUrl, serviceRoleKey) {
           home_score: result.homeScore,
           away_score: result.awayScore,
           method: result.method || "regular",
+          extra_home: result.extraHome ?? null,
+          extra_away: result.extraAway ?? null,
+          pen_winner: result.penWinner ?? null,
+          pen_home: result.penHome ?? null,
+          pen_away: result.penAway ?? null,
         }));
 
         if (rows.length === 0) {
@@ -135,7 +140,9 @@ function saveResultsApiPlugin(supabaseUrl, serviceRoleKey) {
           const { data, error } = await client
             .from("results")
             .upsert(rows, { onConflict: "match_id" })
-            .select("match_id, home_score, away_score, method");
+            .select(
+              "match_id, home_score, away_score, method, extra_home, extra_away, pen_winner, pen_home, pen_away",
+            );
 
           if (error) {
             res.statusCode = 500;
@@ -143,12 +150,16 @@ function saveResultsApiPlugin(supabaseUrl, serviceRoleKey) {
             res.end(JSON.stringify({ error: error.message }));
             return;
           }
-
           const savedResults = (data || []).reduce((acc, row) => {
             acc[row.match_id] = {
               homeScore: row.home_score,
               awayScore: row.away_score,
               method: row.method,
+              extraHome: row.extra_home,
+              extraAway: row.extra_away,
+              penWinner: row.pen_winner,
+              penHome: row.pen_home,
+              penAway: row.pen_away,
             };
             return acc;
           }, {});

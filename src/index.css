@@ -656,6 +656,7 @@ body {
   font-weight: 700;
   font-size: 13px;
   cursor: pointer;
+  margin-bottom: 6px;
 }
 .sync-btn:hover {
   border-color: var(--teal);

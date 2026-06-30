@@ -159,26 +159,61 @@ export async function fetchRealResults() {
 
     const homeIsOurHome =
       normalizeName(apiMatch.homeTeam?.name) === ourMatch.home;
+
+    const duration = apiMatch.score?.duration; // REGULAR | EXTRA_TIME | PENALTY_SHOOTOUT
     const ft = apiMatch.score?.fullTime || {};
+    const regularTime = apiMatch.score?.regularTime || null;
     const et = apiMatch.score?.extraTime || {};
     const pens = apiMatch.score?.penalties || {};
-    const duration = apiMatch.score?.duration; // REGULAR | EXTRA_TIME | PENALTY_SHOOTOUT
 
-    // Use extra time score if it happened, otherwise full time score.
-    // (Penalty shootout score isn't a "scoreline" for our purposes — the
-    // match score stays whatever it was after extra time.)
-    const homeRaw = et.home ?? ft.home;
-    const awayRaw = et.away ?? ft.away;
+    // IMPORTANT: football-data.org's "fullTime" field is only the true
+    // 90-minute score for matches that ended in REGULAR time. For matches
+    // that went to extra time or penalties, "fullTime" is a combined number
+    // (regularTime + penalties) and is NOT the 90-minute scoreline. The real
+    // 90-minute score for those matches is in "regularTime". "extraTime" is
+    // already the goals scored during the extra-time period itself (not
+    // cumulative), so it can be stored directly as our extra_home/extra_away.
+    const ninetyMinRaw = regularTime || ft;
 
-    if (homeRaw === null || homeRaw === undefined) return; // incomplete data
+    const homeScore = homeIsOurHome ? ninetyMinRaw.home : ninetyMinRaw.away;
+    const awayScore = homeIsOurHome ? ninetyMinRaw.away : ninetyMinRaw.home;
 
-    const homeScore = homeIsOurHome ? homeRaw : awayRaw;
-    const awayScore = homeIsOurHome ? awayRaw : homeRaw;
+    if (homeScore === null || homeScore === undefined) return; // incomplete data
+
+    // Extra-time-only goals (already the per-period count, not cumulative)
+    let extraHome = null;
+    let extraAway = null;
+    if (
+      (duration === "EXTRA_TIME" || duration === "PENALTY_SHOOTOUT") &&
+      et.home != null &&
+      et.away != null
+    ) {
+      extraHome = homeIsOurHome ? et.home : et.away;
+      extraAway = homeIsOurHome ? et.away : et.home;
+    }
+
+    // Penalty shootout winner
+    let penWinner = null;
+    if (
+      duration === "PENALTY_SHOOTOUT" &&
+      pens.home != null &&
+      pens.away != null
+    ) {
+      const homeWonPens = homeIsOurHome
+        ? pens.home > pens.away
+        : pens.away > pens.home;
+      penWinner = homeWonPens ? "home" : "away";
+    }
 
     results[ourMatch.id] = {
       homeScore,
       awayScore,
       method: mapDuration(duration),
+      extraHome,
+      extraAway,
+      penWinner,
+      penHome: pens.home ?? null,
+      penAway: pens.away ?? null,
     };
   });
 
