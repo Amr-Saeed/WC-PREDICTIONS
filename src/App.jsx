@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { MATCHES } from "./data/matches";
 import { computePoints } from "./utils/scoring";
 import { fetchMatchKickoffs, fetchRealResults } from "./utils/footballApi";
-import OneSignal from "react-onesignal";
 
 import {
   supabase,
@@ -62,69 +61,6 @@ import LeaderboardView from "./components/LeaderboardView";
 //     );
 // }
 
-async function linkPushSubscription(userId) {
-  try {
-    // 2. Wait until OneSignal creates/links the user
-    let onesignalId = null;
-
-    for (let i = 0; i < 20; i++) {
-      onesignalId = OneSignal.User.onesignalId;
-
-      if (onesignalId) break;
-
-      console.log(`Waiting for OneSignal User... (${i + 1}/20)`);
-      await new Promise((r) => setTimeout(r, 500));
-    }
-
-    if (!onesignalId) {
-      console.error("Couldn't get OneSignal User ID");
-      return;
-    }
-
-    // 3. Ask permission only if needed
-    if (!OneSignal.Notifications.permission) {
-      await OneSignal.Notifications.requestPermission();
-    }
-
-    // 4. Wait until a subscription exists
-    let subscriptionId = null;
-
-    for (let i = 0; i < 20; i++) {
-      subscriptionId = OneSignal.User.PushSubscription.id;
-
-      if (subscriptionId) break;
-
-      console.log(`Waiting for Subscription... (${i + 1}/20)`);
-      await new Promise((r) => setTimeout(r, 500));
-    }
-
-    console.log("=================================");
-    console.log("Permission:", OneSignal.Notifications.permission);
-    console.log("Subscribed:", OneSignal.User.PushSubscription.optedIn);
-    console.log("OneSignal User:", onesignalId);
-    console.log("Subscription:", subscriptionId);
-    console.log("Supabase User:", userId);
-    console.log("=================================");
-
-    const { error } = await supabase.from("push_subscriptions").upsert(
-      {
-        user_id: userId,
-        onesignal_id: onesignalId,
-      },
-      {
-        onConflict: "user_id",
-      },
-    );
-
-    if (error) {
-      console.error(error);
-    } else {
-      console.log("Saved successfully.");
-    }
-  } catch (err) {
-    console.error(err);
-  }
-}
 export default function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState("matches");
@@ -203,7 +139,6 @@ export default function App() {
             ));
           setUser({ id: profile.id, name: profile.display_name });
           // 👇 identify returning user too
-          await linkPushSubscription(profile.id);
           await refreshSharedData(currentUser.id);
         }
       } catch (err) {
@@ -243,7 +178,6 @@ export default function App() {
     );
     setUser({ id: profile.id, name: profile.display_name });
     // 👇 identify this user to OneSignal + save subscription
-    await linkPushSubscription(profile.id);
     setView("matches");
     await refreshSharedData(profile.id);
 
@@ -254,7 +188,6 @@ export default function App() {
 
   const switchUser = async () => {
     await signOut();
-    await OneSignal.logout(); // 👈 add this
 
     setUser(null);
     setPredictions({});
