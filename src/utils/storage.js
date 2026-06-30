@@ -106,6 +106,14 @@ export async function getCurrentUser() {
 
 export async function signOut() {
   const client = requireClient();
+  // 🆕 Unsubscribe from notifications on logout
+  try {
+    const { unsubscribeFromPush } =
+      await import("../../api/notificationService.js");
+    await unsubscribeFromPush();
+  } catch (err) {
+    console.warn("Error unsubscribing from notifications:", err);
+  }
   const { error } = await client.auth.signOut();
   if (error) throw error;
 }

@@ -227,6 +227,8 @@ export default function MatchModal({
                   {extraHome} - {extraAway}
                 </b>
                 <br />
+                Winner: <b>{extraHome > extraAway ? match.home : match.away}</b>
+                <br />
                 Final Match Result: <b>{finalScorePreview}</b>
               </div>
             )}
