@@ -117,30 +117,31 @@ export function computePointsBreakdown(prediction, result) {
   });
 
   // Regular time match
+  // Exact 90-minute score (applies to every match)
+  if (
+    prediction.homeScore === result.homeScore &&
+    prediction.awayScore === result.awayScore
+  ) {
+    total += EXACT_SCORE_BONUS;
+
+    breakdown.push({
+      label: "Exact 90-minute score",
+      points: EXACT_SCORE_BONUS,
+      description: "You predicted the exact score after 90 minutes.",
+    });
+  }
+
+  // If the match ended in regular time, we're done.
   if (!actualDraw90) {
-    if (
-      prediction.homeScore === result.homeScore &&
-      prediction.awayScore === result.awayScore
-    ) {
-      total += EXACT_SCORE_BONUS;
-
-      breakdown.push({
-        label: "Exact score",
-        points: EXACT_SCORE_BONUS,
-        description: "You predicted the exact final score.",
-      });
-    }
-
     return { total, breakdown };
   }
 
   // Extra time bonuses
   if (result.method === "extra_time" && prediction.method === "extra_time") {
-    total += 1;
-
+    total += EXTRA_TIME_METHOD_BONUS;
     breakdown.push({
       label: "Predicted extra time",
-      points: 1,
+      points: EXTRA_TIME_METHOD_BONUS,
       description:
         "You correctly predicted the match would be decided in extra time.",
     });

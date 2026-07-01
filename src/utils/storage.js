@@ -184,6 +184,23 @@ export async function getPredictions(userId) {
 
 export async function savePrediction(userId, matchId, prediction) {
   const client = requireClient();
+
+  let winner = null;
+
+  if (prediction.homeScore > prediction.awayScore) {
+    winner = "home";
+  } else if (prediction.homeScore < prediction.awayScore) {
+    winner = "away";
+  } else if (prediction.method === "extra_time") {
+    if (prediction.extraHome > prediction.extraAway) {
+      winner = "home";
+    } else if (prediction.extraAway > prediction.extraHome) {
+      winner = "away";
+    }
+  } else if (prediction.method === "penalties") {
+    winner = prediction.penWinner;
+  }
+
   const { error } = await client.from("predictions").upsert(
     {
       user_id: userId,
@@ -193,11 +210,16 @@ export async function savePrediction(userId, matchId, prediction) {
       method: prediction.method || "regular",
       extra_home: prediction.extraHome ?? null,
       extra_away: prediction.extraAway ?? null,
-      pen_winner: prediction.penWinner ?? null,
+
+      // Store the overall predicted winner
+      pen_winner: winner,
+
       pen_home: prediction.penHome ?? null,
       pen_away: prediction.penAway ?? null,
     },
-    { onConflict: "user_id,match_id" },
+    {
+      onConflict: "user_id,match_id",
+    },
   );
 
   if (error) throw error;
