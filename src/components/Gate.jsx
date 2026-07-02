@@ -64,10 +64,12 @@ export default function Gate({ onEnter }) {
     setForgotError("");
     setForgotLoading(true);
     try {
+      const productionUrl =
+        import.meta.env.VITE_APP_URL || window.location.origin;
       const { error } = await supabase.auth.resetPasswordForEmail(
         trimmedEmail,
         {
-          redirectTo: window.location.origin,
+          redirectTo: productionUrl,
         },
       );
       if (error) throw error;
