@@ -395,8 +395,7 @@ export default function App() {
       )}
 
       <div className="footer-note">
-        Predict the winner & scoreline for each match. Your predictions are
-        stored in Supabase.
+        Predict the winner & scoreline for each match.
         <br />
         Bonus: +1 if you also called Extra Time correctly, +2 if you called
         Penalties correctly.
