@@ -1,5 +1,6 @@
 import { flag, methodLabel } from "../data/matches";
 import { computePointsBreakdown } from "../utils/scoring";
+import { fetchTeam } from "../utils/footballTeams";
 
 function formatEgyptLabel(kickoff) {
   if (!kickoff?.kickoffUtc) return "";

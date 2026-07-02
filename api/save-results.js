@@ -39,6 +39,8 @@ export default async function handler(req, res) {
     pen_winner: result.penWinner ?? null,
     pen_home: result.penHome ?? null,
     pen_away: result.penAway ?? null,
+    first_goal_team: result.firstGoalTeam ?? null,
+    first_goal_player: result.firstGoalPlayer ?? null,
   }));
 
   if (rows.length === 0) {
@@ -50,7 +52,7 @@ export default async function handler(req, res) {
     .from("results")
     .upsert(rows, { onConflict: "match_id" })
     .select(
-      "match_id, home_score, away_score, method, extra_home, extra_away, pen_winner, pen_home, pen_away",
+      "match_id, home_score, away_score, method, extra_home, extra_away, pen_winner, pen_home, pen_away, first_goal_team, first_goal_player",
     );
   if (error) {
     return res.status(500).json({ error: error.message });
@@ -66,6 +68,8 @@ export default async function handler(req, res) {
       penWinner: row.pen_winner,
       penHome: row.pen_home,
       penAway: row.pen_away,
+      firstGoalTeam: row.first_goal_team,
+      firstGoalPlayer: row.first_goal_player,
     };
     return acc;
   }, {});

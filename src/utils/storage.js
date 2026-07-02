@@ -15,60 +15,60 @@ function requireClient() {
   return supabase;
 }
 
-function loginPasswordForEmail(email) {
-  return email.trim().toLowerCase();
-}
-
-export async function signInWithEmail(email, displayName) {
+export async function signInWithEmail(email, displayName, password) {
   const client = requireClient();
-  const password = loginPasswordForEmail(email);
   const normalizedEmail = email.trim().toLowerCase();
 
-  const { data: existingProfile, error: existingProfileError } = await client
+  // Check if display name is already taken by a different email
+  const { data: existingProfile } = await client
     .from("profiles")
     .select("id, email, display_name")
     .ilike("email", normalizedEmail)
     .maybeSingle();
 
-  if (existingProfileError) throw existingProfileError;
-
-  const { data: signInData, error: signInError } =
-    await client.auth.signInWithPassword({
-      email,
-      password,
-    });
+  // Try signing in first (returning user)
+  const { data: signInData } = await client.auth.signInWithPassword({
+    email: normalizedEmail,
+    password,
+  });
 
   if (signInData?.user) {
-    await upsertProfile(
-      signInData.user.id,
-      displayName || signInData.user.email || normalizedEmail,
-      normalizedEmail,
-    );
+    // Returning user — do NOT overwrite their display_name
+    const profile = await getProfile(signInData.user.id);
     return {
       user: signInData.user,
-      message: `Logged in as ${displayName || signInData.user.email || normalizedEmail}`,
+      message: `Logged in as ${profile?.display_name || displayName}`,
     };
   }
 
+  // Sign in failed — check if email exists with a different password
   if (existingProfile?.id) {
+    throw new Error("Incorrect password for this email address.");
+  }
+
+  // New user — check display name uniqueness first
+  const { data: nameTaken } = await client
+    .from("profiles")
+    .select("id")
+    .ilike("display_name", displayName.trim())
+    .maybeSingle();
+
+  if (nameTaken) {
     throw new Error(
-      "This email is already registered. Sign in with the same email and password, or contact support if you previously used a different login method.",
+      "This display name is already taken. Please choose a different name.",
     );
   }
 
+  // Create new account
   const { data: signUpData, error: signUpError } = await client.auth.signUp({
     email: normalizedEmail,
     password,
     options: {
-      data: displayName
-        ? { display_name: displayName, email: normalizedEmail }
-        : { email: normalizedEmail },
+      data: { display_name: displayName.trim(), email: normalizedEmail },
     },
   });
 
-  if (signUpError) {
-    throw signUpError;
-  }
+  if (signUpError) throw signUpError;
 
   if (signUpData?.user) {
     const { data: signInAfterSignUp, error: signInAfterSignUpError } =
@@ -82,19 +82,17 @@ export async function signInWithEmail(email, displayName) {
     if (signInAfterSignUp?.user) {
       await upsertProfile(
         signInAfterSignUp.user.id,
-        displayName || signInAfterSignUp.user.email || normalizedEmail,
+        displayName.trim(),
         normalizedEmail,
       );
       return {
         user: signInAfterSignUp.user,
-        message: `Logged in as ${displayName || signInAfterSignUp.user.email || normalizedEmail}`,
+        message: `Logged in as ${displayName.trim()}`,
       };
     }
   }
 
-  if (signInError) throw signInError;
-
-  throw new Error("Unable to log in.");
+  throw new Error("Unable to log in. Please try again.");
 }
 
 export async function getCurrentUser() {
@@ -161,7 +159,7 @@ export async function getPredictions(userId) {
   const { data, error } = await client
     .from("predictions")
     .select(
-      "match_id, home_score, away_score, method, extra_home, extra_away, pen_winner, pen_home, pen_away",
+      "match_id, home_score, away_score, method, extra_home, extra_away, pen_winner, pen_home, pen_away, first_goal_team, first_goal_player",
     )
     .eq("user_id", userId);
 
@@ -177,6 +175,8 @@ export async function getPredictions(userId) {
       penWinner: row.pen_winner,
       penHome: row.pen_home,
       penAway: row.pen_away,
+      firstGoalTeam: row.first_goal_team,
+      firstGoalPlayer: row.first_goal_player,
     };
     return acc;
   }, {});
@@ -216,6 +216,8 @@ export async function savePrediction(userId, matchId, prediction) {
 
       pen_home: prediction.penHome ?? null,
       pen_away: prediction.penAway ?? null,
+      first_goal_team: prediction.firstGoalTeam ?? null,
+      first_goal_player: prediction.firstGoalPlayer ?? null,
     },
     {
       onConflict: "user_id,match_id",
@@ -278,7 +280,7 @@ export async function getResults() {
   const { data, error } = await client
     .from("results")
     .select(
-      "match_id, home_score, away_score, method, extra_home, extra_away, pen_winner, pen_home, pen_away",
+      "match_id, home_score, away_score, method, extra_home, extra_away, pen_winner, pen_home, pen_away, first_goal_team, first_goal_player",
     );
 
   if (error) throw error;
@@ -293,6 +295,8 @@ export async function getResults() {
       penWinner: row.pen_winner,
       penHome: row.pen_home,
       penAway: row.pen_away,
+      firstGoalTeam: row.first_goal_team,
+      firstGoalPlayer: row.first_goal_player,
     };
     return acc;
   }, {});

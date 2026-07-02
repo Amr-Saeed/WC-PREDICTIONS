@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { flag } from "../data/matches";
 import { METHODS } from "../data/matches";
+import { fetchTeam } from "../utils/footballTeams";
 
 export default function MatchModal({
   match,
@@ -29,7 +30,16 @@ export default function MatchModal({
   const [penAway, setPenAway] = useState(
     prediction?.penAway != null ? String(prediction.penAway) : "",
   );
+  const [firstGoalTeam, setFirstGoalTeam] = useState(
+    prediction?.firstGoalTeam || "",
+  );
 
+  const [firstGoalPlayer, setFirstGoalPlayer] = useState(
+    prediction?.firstGoalPlayer || "",
+  );
+  const [homePlayers, setHomePlayers] = useState([]);
+  const [awayPlayers, setAwayPlayers] = useState([]);
+  const [loadingPlayers, setLoadingPlayers] = useState(false);
   const homeNum = home === "" ? null : Number(home);
   const awayNum = away === "" ? null : Number(away);
   const validRegulation =
@@ -38,6 +48,31 @@ export default function MatchModal({
     !Number.isNaN(homeNum) &&
     !Number.isNaN(awayNum);
   const isDraw = validRegulation && homeNum === awayNum;
+  useEffect(() => {
+    async function loadPlayers() {
+      if (!match?.kickoff?.homeId || !match?.kickoff?.awayId) return;
+
+      setLoadingPlayers(true);
+
+      try {
+        const [homeTeam, awayTeam] = await Promise.all([
+          fetchTeam(match.kickoff.homeId),
+          fetchTeam(match.kickoff.awayId),
+        ]);
+
+        setHomePlayers(homeTeam.squad || []);
+        setAwayPlayers(awayTeam.squad || []);
+        console.log(" home players:", homePlayers);
+        console.log(" away players:", awayPlayers);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingPlayers(false);
+      }
+    }
+
+    loadPlayers();
+  }, [match]);
 
   const extraHomeNum = extraHome === "" ? null : Number(extraHome);
   const extraAwayNum = extraAway === "" ? null : Number(extraAway);
@@ -71,7 +106,12 @@ export default function MatchModal({
   } else if (validRegulation && isDraw && effectiveMethod === "penalties") {
     canSave = penWinner === "home" || penWinner === "away";
   }
-
+  const players =
+    firstGoalTeam === "home"
+      ? homePlayers
+      : firstGoalTeam === "away"
+        ? awayPlayers
+        : [];
   const submit = () => {
     if (!canSave) return;
     const finalMethod = !isDraw ? "regular" : effectiveMethod;
@@ -87,6 +127,8 @@ export default function MatchModal({
         finalMethod === "penalties" && penHome !== "" ? Number(penHome) : null,
       penAway:
         finalMethod === "penalties" && penAway !== "" ? Number(penAway) : null,
+      firstGoalTeam,
+      firstGoalPlayer,
     });
     onClose();
   };
@@ -290,7 +332,51 @@ export default function MatchModal({
             </div>
           </>
         )}
+        <div className="field-label">First Goal Scorer (Bonus)</div>
 
+        <div className="method-options">
+          <div
+            className={"method-chip" + (firstGoalTeam === "home" ? " sel" : "")}
+            onClick={() => {
+              setFirstGoalTeam("home");
+              setFirstGoalPlayer("");
+            }}
+          >
+            {match.home}
+          </div>
+
+          <div
+            className={"method-chip" + (firstGoalTeam === "away" ? " sel" : "")}
+            onClick={() => {
+              setFirstGoalTeam("away");
+              setFirstGoalPlayer("");
+            }}
+          >
+            {match.away}
+          </div>
+        </div>
+
+        {firstGoalTeam && (
+          <>
+            <div className="field-label" style={{ marginTop: 15 }}>
+              Select Player
+            </div>
+
+            <select
+              className="score-input"
+              value={firstGoalPlayer}
+              onChange={(e) => setFirstGoalPlayer(e.target.value)}
+            >
+              <option value="">Choose player...</option>
+
+              {players.map((player) => (
+                <option key={player.id} value={player.name}>
+                  {player.name}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
         <button className="save-btn" disabled={!canSave} onClick={submit}>
           Save Prediction
         </button>

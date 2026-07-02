@@ -182,7 +182,64 @@ function saveResultsApiPlugin(supabaseUrl, serviceRoleKey) {
     },
   };
 }
+function teamsApiPlugin(token) {
+  return {
+    name: "dev-teams-api",
+    configureServer(server) {
+      server.middlewares.use("/api/teams", async (req, res, next) => {
+        if (req.method && req.method !== "GET") {
+          next();
+          return;
+        }
 
+        if (!token) {
+          res.statusCode = 500;
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({ error: "Missing FOOTBALL_DATA_TOKEN" }));
+          return;
+        }
+
+        const url = new URL(req.url, "http://localhost");
+        const teamId = url.searchParams.get("teamId");
+
+        if (!teamId) {
+          res.statusCode = 400;
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({ error: "teamId is required" }));
+          return;
+        }
+
+        try {
+          const apiRes = await fetch(
+            `https://api.football-data.org/v4/teams/${teamId}`,
+            {
+              headers: {
+                "X-Auth-Token": token,
+              },
+            },
+          );
+
+          const data = await apiRes.json();
+
+          res.statusCode = apiRes.status;
+          res.setHeader("Content-Type", "application/json");
+
+          res.end(
+            JSON.stringify({
+              id: data.id,
+              name: data.name,
+              squad: data.squad ?? [],
+            }),
+          );
+        } catch (err) {
+          res.statusCode = 500;
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({ error: err.message }));
+        }
+      });
+    },
+  };
+}
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
@@ -234,6 +291,8 @@ export default defineConfig(({ mode }) => {
         },
       }),
       resultsApiPlugin(env.FOOTBALL_DATA_TOKEN),
+      teamsApiPlugin(env.FOOTBALL_DATA_TOKEN), // <-- add this
+
       saveResultsApiPlugin(
         env.SUPABASE_URL || env.VITE_SUPABASE_URL,
         env.SUPABASE_SERVICE_ROLE_KEY,

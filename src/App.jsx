@@ -165,25 +165,25 @@ export default function App() {
     syncResults();
   }, [view, user]);
 
-  const handleEnter = async (name, email) => {
+  const handleEnter = async (name, email, password) => {
     setError("");
 
     const normalizedEmail = email.trim().toLowerCase();
-    const result = await signInWithEmail(normalizedEmail, name.trim());
-
-    const profile = await upsertProfile(
-      result.user.id,
-      name.trim(),
+    const result = await signInWithEmail(
       normalizedEmail,
+      name.trim(),
+      password,
     );
+
+    const profile =
+      (await getProfile(result.user.id)) ||
+      (await upsertProfile(result.user.id, name.trim(), normalizedEmail));
+
     setUser({ id: profile.id, name: profile.display_name });
-    // 👇 identify this user to OneSignal + save subscription
     setView("matches");
     await refreshSharedData(profile.id);
 
-    return {
-      message: result.message,
-    };
+    return { message: result.message };
   };
 
   const switchUser = async () => {

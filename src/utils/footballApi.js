@@ -99,6 +99,9 @@ function buildMatchTimes(apiMatches) {
       kickoffEgyptDateKey: formatEgyptDateKey(apiMatch.utcDate),
       kickoffEgypt: formatEgyptTime(apiMatch.utcDate),
       status: apiMatch.status || "",
+
+      homeId: apiMatch.homeTeam.id,
+      awayId: apiMatch.awayTeam.id,
     };
   });
 

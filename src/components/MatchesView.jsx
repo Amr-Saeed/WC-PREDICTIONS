@@ -68,6 +68,8 @@ export default function MatchesView({
     }))
     .sort((a, b) => a.dateKey.localeCompare(b.dateKey));
 
+  console.log("sortedGroups:", sortedGroups);
+
   return (
     <div>
       {sortedGroups.map((group) => (

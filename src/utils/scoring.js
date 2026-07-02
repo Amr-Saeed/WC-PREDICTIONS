@@ -190,7 +190,32 @@ export function computePointsBreakdown(prediction, result) {
       });
     }
   }
+  // First Goal Bonus
+  if (
+    prediction.firstGoalPlayer &&
+    result.firstGoalPlayer &&
+    prediction.firstGoalPlayer === result.firstGoalPlayer
+  ) {
+    total += 2;
 
+    breakdown.push({
+      label: "First goal scorer",
+      points: 2,
+      description: "You predicted the first player to score.",
+    });
+  } else if (
+    prediction.firstGoalTeam &&
+    result.firstGoalTeam &&
+    prediction.firstGoalTeam === result.firstGoalTeam
+  ) {
+    total += 1;
+
+    breakdown.push({
+      label: "First team to score",
+      points: 1,
+      description: "You predicted the correct team to score first.",
+    });
+  }
   return { total, breakdown };
 }
 
