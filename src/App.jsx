@@ -61,7 +61,108 @@ import LeaderboardView from "./components/LeaderboardView";
 //     );
 // }
 
+function PasswordResetScreen() {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleReset = async () => {
+    if (!password) {
+      setError("Please enter a new password.");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+    if (password !== confirm) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      setSuccess(true);
+      // Clear the hash from the URL so a refresh doesn't re-trigger this screen
+      window.history.replaceState(null, "", window.location.pathname);
+    } catch (e) {
+      setError(e.message || "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="gate">
+      <div className="trophy-big">🏆</div>
+      <h1>Set New Password</h1>
+      <div className="gate-card">
+        {success ? (
+          <>
+            <div
+              style={{
+                color: "var(--teal-bright)",
+                fontSize: 14,
+                textAlign: "center",
+                marginBottom: 12,
+              }}
+            >
+              ✓ Password updated successfully!
+            </div>
+            <button
+              onClick={() => (window.location.href = window.location.pathname)}
+            >
+              Continue to app
+            </button>
+          </>
+        ) : (
+          <>
+            <label>New password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 6 characters"
+              autoFocus
+            />
+            <label style={{ marginTop: 12 }}>Confirm new password</label>
+            <input
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              placeholder="Repeat your password"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleReset();
+              }}
+            />
+            {error && <div className="err">{error}</div>}
+            <button
+              onClick={handleReset}
+              disabled={loading}
+              style={{ marginTop: 16 }}
+            >
+              {loading ? "Saving…" : "Set new password"}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 export default function App() {
+  const hash = window.location.hash;
+  const isRecovery = hash.includes("type=recovery");
+
+  if (isRecovery) {
+    supabase.auth.getSession();
+    return <PasswordResetScreen />;
+  }
+
   const [user, setUser] = useState(null);
   const [view, setView] = useState("matches");
   const [predictions, setPredictions] = useState({});
